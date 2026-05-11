@@ -4,6 +4,10 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
 
+concurrency:
+  group: supply-chain-audit-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 permissions:
   pull-requests: write
   contents: read
