@@ -13,28 +13,36 @@ on:
       - 'hermes_cli/**'
       - 'run_agent.py'
       - 'acp_adapter/**'
+  workflow_dispatch:
 
 concurrency:
   group: nix-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  nix:
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
+  linux:
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: DeterminateSystems/nix-installer-action@ef8a148080ab6020fd15196c2084a2eea5ff2d25  # v22
       - uses: DeterminateSystems/magic-nix-cache-action@565684385bcd71bad329742eefe8d12f2e765b39  # v13
       - name: Check flake
-        if: runner.os == 'Linux'
         run: nix flake check --print-build-logs
       - name: Build package
-        if: runner.os == 'Linux'
         run: nix build --print-build-logs
-      - name: Evaluate flake (macOS)
-        if: runner.os == 'macOS'
+
+  macos:
+    # macOS runners cost 10.3x Linux ($0.062 vs $0.006 per min). The macOS
+    # step is only `nix flake show` (a dry-eval to catch platform eval-key
+    # regressions) — not a real build — so post-merge coverage is enough.
+    # Skip on pull_request to avoid firing on every dependabot uv bump.
+    if: github.event_name != 'pull_request'
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@ef8a148080ab6020fd15196c2084a2eea5ff2d25  # v22
+      - uses: DeterminateSystems/magic-nix-cache-action@565684385bcd71bad329742eefe8d12f2e765b39  # v13
+      - name: Evaluate flake
         run: nix flake show --json > /dev/null
